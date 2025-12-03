@@ -7,7 +7,8 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Trash2,
-  Download
+  Download,
+  FileText
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { PageTransition } from '@/components/layout/PageTransition';
@@ -19,6 +20,8 @@ import CanvasParticles from '@/components/CanvasParticles';
 import { useAppStore, Transaction } from '@/lib/store';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function Transactions() {
   const { settings, transactions, deleteTransaction } = useAppStore();
@@ -82,7 +85,191 @@ export default function Transactions() {
     a.href = url;
     a.download = 'transactions.csv';
     a.click();
-    toast.success('Transactions exported');
+    toast.success('Transactions exported as CSV');
+  };
+
+  const handleExportPDF = () => {
+    const { user } = useAppStore.getState();
+    const doc = new jsPDF();
+    
+    // Sort transactions by date
+    const sortedTransactions = [...filteredTransactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Calculate totals
+    const totalIncome = sortedTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const totalExpense = sortedTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    const netBalance = totalIncome - totalExpense;
+
+    // Colors
+    const primaryColor: [number, number, number] = [6, 182, 212]; // Cyan
+    const darkColor: [number, number, number] = [30, 30, 30];
+    
+    // Header background
+    doc.setFillColor(...darkColor);
+    doc.rect(0, 0, 210, 45, 'F');
+    
+    // Logo/Title
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Simple Budget Tracker', 15, 20);
+    
+    // Subtitle
+    doc.setFontSize(12);
+    doc.setTextColor(150, 150, 150);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Transaction Statement', 15, 30);
+    
+    // Statement date
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, 15, 38);
+
+    // Account holder info box
+    doc.setFillColor(40, 40, 40);
+    doc.roundedRect(15, 52, 85, 35, 3, 3, 'F');
+    
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Account Holder', 20, 62);
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text(user?.name || 'User', 20, 72);
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text(user?.email || 'demo@demo.com', 20, 80);
+
+    // Summary box
+    doc.setFillColor(40, 40, 40);
+    doc.roundedRect(110, 52, 85, 35, 3, 3, 'F');
+    
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Statement Period', 115, 62);
+    
+    if (sortedTransactions.length > 0) {
+      const firstDate = new Date(sortedTransactions[0].date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      const lastDate = new Date(sortedTransactions[sortedTransactions.length - 1].date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`${firstDate} - ${lastDate}`, 115, 72);
+    }
+    
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Total Transactions: ${sortedTransactions.length}`, 115, 80);
+
+    // Financial Summary
+    doc.setFillColor(30, 30, 30);
+    doc.roundedRect(15, 95, 180, 30, 3, 3, 'F');
+    
+    // Income
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Total Income', 25, 106);
+    doc.setFontSize(14);
+    doc.setTextColor(22, 163, 74); // Green
+    doc.text(`+${formatCurrency(totalIncome)}`, 25, 117);
+    
+    // Expense
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Total Expense', 85, 106);
+    doc.setFontSize(14);
+    doc.setTextColor(249, 115, 22); // Orange
+    doc.text(`-${formatCurrency(totalExpense)}`, 85, 117);
+    
+    // Net Balance
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Net Balance', 145, 106);
+    doc.setFontSize(14);
+    doc.setTextColor(...(netBalance >= 0 ? [22, 163, 74] : [239, 68, 68]) as [number, number, number]);
+    doc.text(`${netBalance >= 0 ? '+' : ''}${formatCurrency(netBalance)}`, 145, 117);
+
+    // Transaction Table
+    const tableData = sortedTransactions.map((t, index) => {
+      const date = new Date(t.date);
+      return [
+        (index + 1).toString(),
+        date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        t.category,
+        t.note || '-',
+        t.type === 'income' ? `+${formatCurrency(t.amount)}` : `-${formatCurrency(t.amount)}`,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 135,
+      head: [['#', 'Date', 'Time', 'Category', 'Description', 'Amount']],
+      body: tableData,
+      theme: 'plain',
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        textColor: [200, 200, 200],
+        fillColor: [30, 30, 30],
+      },
+      headStyles: {
+        fillColor: [6, 182, 212],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 9,
+      },
+      alternateRowStyles: {
+        fillColor: [40, 40, 40],
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 50 },
+        5: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+      },
+      didParseCell: (data) => {
+        if (data.column.index === 5 && data.section === 'body') {
+          const text = data.cell.text[0];
+          if (text.startsWith('+')) {
+            data.cell.styles.textColor = [22, 163, 74];
+          } else if (text.startsWith('-')) {
+            data.cell.styles.textColor = [249, 115, 22];
+          }
+        }
+      },
+    });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(
+        `Page ${i} of ${pageCount} | Simple Budget Tracker | This is a computer-generated statement`,
+        105,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Save
+    const filename = `statement_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
+    toast.success('Bank statement PDF downloaded!');
   };
 
   return (
@@ -105,11 +292,20 @@ export default function Transactions() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
+                  onClick={handleExportPDF}
+                  disabled={filteredTransactions.length === 0}
+                  className="hidden sm:flex"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  PDF Statement
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handleExport}
                   disabled={filteredTransactions.length === 0}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Export
+                  CSV
                 </Button>
                 <Button
                   variant="neon"
