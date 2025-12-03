@@ -41,8 +41,8 @@ const CanvasParticles = ({
     const isMobile = window.innerWidth < 768;
     const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     
-    if (isMobile || isLowEnd) return Math.floor(particleCount * 0.3);
-    return particleCount;
+    if (isMobile || isLowEnd) return Math.floor(particleCount * 0.5);
+    return particleCount * 1.5; // More particles for desktop
   }, [particleCount]);
 
   const createParticle = useCallback((canvas: HTMLCanvasElement, existingY?: number): Particle => {
@@ -114,24 +114,30 @@ const CanvasParticles = ({
       ctx.translate(x, y);
       ctx.rotate(rotation);
       
-      // Glow effect - stronger for front layers
-      const glowIntensity = [10, 15, 20][layer];
+      // Bright gold glow effect - stronger for front layers
+      const glowIntensity = [15, 25, 35][layer];
       ctx.shadowBlur = glowIntensity;
-      ctx.shadowColor = `rgba(6, 182, 212, ${opacity * 0.8})`;
+      ctx.shadowColor = `rgba(255, 215, 0, ${opacity})`;
       
       // Draw rupee symbol
       ctx.font = `bold ${size}px 'Inter', sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Gradient fill
+      // Bright gold gradient fill - shining effect
       const gradient = ctx.createLinearGradient(-size/2, -size/2, size/2, size/2);
-      gradient.addColorStop(0, `rgba(6, 182, 212, ${opacity})`);
-      gradient.addColorStop(0.5, `rgba(120, 75, 160, ${opacity})`);
-      gradient.addColorStop(1, `rgba(255, 60, 172, ${opacity})`);
+      gradient.addColorStop(0, `rgba(255, 223, 0, ${opacity})`);      // Bright yellow gold
+      gradient.addColorStop(0.3, `rgba(255, 200, 50, ${opacity})`);   // Golden
+      gradient.addColorStop(0.5, `rgba(255, 255, 150, ${opacity})`);  // Bright shine
+      gradient.addColorStop(0.7, `rgba(255, 180, 0, ${opacity})`);    // Deep gold
+      gradient.addColorStop(1, `rgba(218, 165, 32, ${opacity})`);     // Goldenrod
       
       ctx.fillStyle = gradient;
       ctx.fillText('₹', 0, 0);
+      
+      // Add extra shine highlight
+      ctx.shadowBlur = glowIntensity * 1.5;
+      ctx.shadowColor = `rgba(255, 255, 200, ${opacity * 0.5})`;
       
       ctx.restore();
     };
