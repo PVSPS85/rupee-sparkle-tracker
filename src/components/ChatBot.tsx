@@ -19,6 +19,9 @@ const quickSuggestions = [
   { label: "🎯 50/30/20 rule", text: "Explain the 50/30/20 budgeting rule" },
   { label: "🚨 Emergency fund", text: "How much should I save for emergencies?" },
   { label: "💳 Cut expenses", text: "Ways to reduce my monthly expenses?" },
+  { label: "📈 Investment basics", text: "What are the basics of investing for beginners?" },
+  { label: "💸 Manage debt", text: "Tips for managing and paying off debt" },
+  { label: "🏠 Save for goals", text: "How to save for big goals like a house or car?" },
 ];
 
 const ChatBot = () => {
