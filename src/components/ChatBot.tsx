@@ -13,6 +13,14 @@ interface Message {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finance-chat`;
 
+const quickSuggestions = [
+  { label: "💰 Save money", text: "How can I save more money each month?" },
+  { label: "📊 Budget tips", text: "What are some effective budgeting tips?" },
+  { label: "🎯 50/30/20 rule", text: "Explain the 50/30/20 budgeting rule" },
+  { label: "🚨 Emergency fund", text: "How much should I save for emergencies?" },
+  { label: "💳 Cut expenses", text: "Ways to reduce my monthly expenses?" },
+];
+
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -126,6 +134,32 @@ const ChatBot = () => {
     }
   };
 
+  const handleSuggestionClick = async (text: string) => {
+    if (isLoading) return;
+    
+    const userMessage: Message = { role: 'user', content: text };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setIsLoading(true);
+
+    try {
+      const messagesToSend = newMessages.slice(1);
+      await streamChat(messagesToSend);
+    } catch (error) {
+      console.error('Chat error:', error);
+      toast({
+        title: "Oops!",
+        description: error instanceof Error ? error.message : "Couldn't get a response. Please try again.",
+        variant: "destructive",
+      });
+      setMessages(prev => prev.filter((_, i) => i !== prev.length - 1));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const showSuggestions = messages.length <= 2 && !isLoading;
+
   return (
     <>
       {/* Chat Toggle Button */}
@@ -214,6 +248,27 @@ const ChatBot = () => {
                 ))}
               </div>
             </ScrollArea>
+
+            {/* Quick Suggestions */}
+            {showSuggestions && (
+              <div className="px-4 pb-2">
+                <p className="text-xs text-muted-foreground mb-2">Quick questions:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {quickSuggestions.map((suggestion, index) => (
+                    <motion.button
+                      key={index}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      onClick={() => handleSuggestionClick(suggestion.text)}
+                      className="px-2.5 py-1 text-xs rounded-full bg-muted/50 border border-border/50 hover:border-neon-cyan/50 hover:bg-neon-cyan/10 transition-colors"
+                    >
+                      {suggestion.label}
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Input */}
             <div className="p-4 border-t border-border/50 bg-background/50">
