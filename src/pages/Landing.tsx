@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Wallet, TrendingUp, PiggyBank, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import CanvasParticles from '@/components/CanvasParticles';
+import ScreenPets from '@/components/ScreenPets';
 import { useAppStore } from '@/lib/store';
 
 export default function Landing() {
@@ -41,7 +42,8 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <CanvasParticles enabled={settings.particlesEnabled} particleCount={80} />
+      <CanvasParticles enabled={settings.particlesEnabled} particleCount={120} />
+      <ScreenPets />
       
       {/* Navigation */}
       <nav className="relative z-10 container mx-auto px-4 py-6">
